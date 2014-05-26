@@ -45,20 +45,41 @@ void jniTryCatch(JNIEnv * env, const std::function<void()> & body)
 	catch (const JNI::Exception &)
 	{
 		if (UNLIKELY(!env->ExceptionOccurred()))
-			jniThrowException(env, "java/lang/InternalError", "JNI::Exception");
+			jniSetException(env, "java/lang/InternalError", "JNI::Exception");
 	}
 	catch (const std::bad_alloc & e)
 	{
-		jniThrowException(env, "java/lang/OutOfMemoryError", e.what());
+		jniSetException(env, "java/lang/OutOfMemoryError", e.what());
 	}
 	catch (const std::exception & e)
 	{
-		jniThrowException(env, "java/lang/RuntimeException", e.what());
+		jniSetException(env, "java/lang/RuntimeException", e.what());
 	}
 	catch (...)
 	{
-		jniThrowException(env, "java/lang/RuntimeException", "Unhandled exception in C++ code.");
+		jniSetException(env, "java/lang/RuntimeException", "Unhandled exception in C++ code.");
 	}
+}
+
+jclass jniGetClass(JNIEnv * env, const char * name)
+{
+	name = (name ? name : "");
+
+	jclass cls = env->FindClass(name);
+	jniCheckException(env);
+
+	if (UNLIKELY(!cls))
+	{
+		jniSetException(env, "java/lang/ClassNotFoundException", name);
+		throw JNI::Exception();
+	}
+
+	return cls;
+}
+
+jclass jniGetClass(JNIEnv * env, const std::string & name)
+{
+	return jniGetClass(env, name.c_str());
 }
 
 std::string jniGetClassName(JNIEnv * env, jclass cls)
@@ -105,8 +126,25 @@ std::string jniGetStringUTFChars(JNIEnv * env, jstring string)
 	return result;
 }
 
+jstring jniNewStringUTF(JNIEnv * env, const char * str)
+{
+	jstring result = env->NewStringUTF(str ? str : "");
+	jniCheckException(env);
+	return result;
+}
+
+jstring jniNewStringUTF(JNIEnv * env, const std::string & str)
+{
+	jstring result = env->NewStringUTF(str.c_str());
+	jniCheckException(env);
+	return result;
+}
+
 jmethodID jniGetClassMethod(JNIEnv * env, jclass cls, const char * name, const char * signature)
 {
+	name = (name ? name : "");
+	signature = (signature ? signature : "");
+
 	jmethodID method = env->GetMethodID(cls, name, signature);
 	jniCheckException(env);
 
@@ -122,16 +160,28 @@ jmethodID jniGetClassMethod(JNIEnv * env, jclass cls, const char * name, const c
 jmethodID jniGetObjectMethod(JNIEnv * env, jobject obj, const char * name, const char * signature)
 {
 	jclass cls = env->GetObjectClass(obj);
+	jniCheckException(env);
+
 	return jniGetClassMethod(env, cls, name, signature);
 }
 
-jint jniThrowException(JNIEnv * env, const char * className, const char * message) noexcept
+jint jniSetException(JNIEnv * env, const char * className, const char * message) noexcept
 {
+	className = (className ? className : "");
+	message = (message ? message : "");
+
 	jclass cls = env->FindClass(className);
+	jniCheckException(env);
+
 	if (LIKELY(cls))
 		return env->ThrowNew(cls, message);
 
 	return env->ThrowNew(env->FindClass("java/lang/ClassNotFoundException"), className);
+}
+
+jint jniSetException(JNIEnv * env, const char * className, const std::string & message) noexcept
+{
+	return jniSetException(env, className, message.c_str());
 }
 
 #endif // __ANDROID__ || USE_JNI_UTIL

@@ -39,13 +39,19 @@ namespace JNI
 void jniCheckException(JNIEnv * env);
 void jniTryCatch(JNIEnv * env, const std::function<void()> & body);
 
+jclass jniGetClass(JNIEnv * env, const char * name);
+jclass jniGetClass(JNIEnv * env, const std::string & name);
 std::string jniGetClassName(JNIEnv * env, jclass cls);
+
 std::string jniGetStringUTFChars(JNIEnv * env, jstring string);
+jstring jniNewStringUTF(JNIEnv * env, const char * str);
+jstring jniNewStringUTF(JNIEnv * env, const std::string & str);
 
 jmethodID jniGetClassMethod(JNIEnv * env, jclass cls, const char * name, const char * signature);
 jmethodID jniGetObjectMethod(JNIEnv * env, jobject obj, const char * name, const char * signature);
 
-jint jniThrowException(JNIEnv * env, const char * className, const char * message) noexcept;
+jint jniSetException(JNIEnv * env, const char * className, const char * message) noexcept;
+jint jniSetException(JNIEnv * env, const char * className, const std::string & message) noexcept;
 
 #endif // __ANDROID__ || USE_JNI_UTIL
 
